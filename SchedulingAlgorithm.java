@@ -14,7 +14,8 @@ public class SchedulingAlgorithm {
     try {
       PrintStream out = new PrintStream(new FileOutputStream(resultsFile));
       // Call round robin here, after implementing it and remove or comment out the following line.
-      FIFO(runtime, processVector, result, out);
+      roundRobin(runtime, timeSlice, processVector, result, out);
+      // FIFO(runtime, processVector, result, out);
       //
       out.close();
     } catch (IOException e) { /* Handle exceptions */
@@ -24,10 +25,38 @@ public class SchedulingAlgorithm {
   }
 
   private static void roundRobin(int runtime, int timeSlice, Vector<sProcess> processVector, Results result, PrintStream out){
-    // ADD YOUR CODE HERE AND ROMOVE THE FOLLOWING LINE
-    throw (new RuntimeException("Round Robin method not implemented."));
-  }
+    int comptime = 0;
+    int size = processVector.size();
+    Queue<sProcess> queue = new LinkedList<>(processVector);
 
+    result.schedulingType = "Batch (Preemptive)";
+    result.schedulingName = "Round-Robin";
+
+    while (comptime < runtime && !queue.isEmpty()) {
+        sProcess process = queue.poll();
+        if (process.cpudone < process.cputime) {
+            int timeToRun = Math.min(timeSlice, process.cputime - process.cpudone);
+            process.cpudone += timeToRun;
+            comptime += timeToRun;
+
+            if (process.cpudone == process.cputime) {
+                printCompleted(out, processVector.indexOf(process), process, comptime);
+            } else {
+                queue.add(process);
+            }
+
+            if (process.ioblocking > 0 && process.ionext == process.ioblocking) {
+                printIOBlocked(out, processVector.indexOf(process), process, comptime);
+                process.numblocked++;
+                process.ionext = 0;
+            } else {
+                process.ionext += timeToRun;
+            }
+        }
+    }
+
+    result.compuTime = comptime;
+  }
 
   private static void FIFO(int runtime, Vector<sProcess> processVector, Results result, PrintStream out){
     int i = 0;
