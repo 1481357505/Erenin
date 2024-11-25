@@ -1,7 +1,3 @@
-// Run() is called from Scheduling.main() and is where
-// the scheduling algorithm written by the user resides.
-// User modification should occur within the Run() function.
-
 import java.util.*;
 import java.io.*;
 
@@ -13,12 +9,9 @@ public class SchedulingAlgorithm {
 
     try {
       PrintStream out = new PrintStream(new FileOutputStream(resultsFile));
-      // Call round robin here, after implementing it and remove or comment out the following line.
       roundRobin(runtime, timeSlice, processVector, result, out);
-      // FIFO(runtime, processVector, result, out);
-      //
       out.close();
-    } catch (IOException e) { /* Handle exceptions */
+    } catch (IOException e) {
       e.printStackTrace();
     }
     return result;
@@ -32,6 +25,18 @@ public class SchedulingAlgorithm {
     result.schedulingType = "Batch (Preemptive)";
     result.schedulingName = "Round-Robin";
 
+    // Initial registration and I/O blocking of all processes
+    for (sProcess process : processVector) {
+      int currentProcessIndex = processVector.indexOf(process);
+      printRegistered(out, currentProcessIndex, process, comptime);
+
+      if (process.ioblocking > 0 && process.ionext == process.ioblocking) {
+        printIOBlocked(out, currentProcessIndex, process, comptime);
+        process.numblocked++;
+        process.ionext = 0;
+      }
+    }
+
     while (comptime < runtime && !queue.isEmpty()) {
         sProcess process = queue.poll();
         if (process.cpudone < process.cputime) {
@@ -39,14 +44,23 @@ public class SchedulingAlgorithm {
             process.cpudone += timeToRun;
             comptime += timeToRun;
 
+            int currentProcessIndex = processVector.indexOf(process);
+            printRegistered(out, currentProcessIndex, process, comptime);
+
+            if (process.ioblocking > 0 && process.ionext == process.ioblocking) {
+                printIOBlocked(out, currentProcessIndex, process, comptime);
+                process.numblocked++;
+                process.ionext = 0;
+            }
+
             if (process.cpudone == process.cputime) {
-                printCompleted(out, processVector.indexOf(process), process, comptime);
+                printCompleted(out, currentProcessIndex, process, comptime);
             } else {
                 queue.add(process);
             }
 
             if (process.ioblocking > 0 && process.ionext == process.ioblocking) {
-                printIOBlocked(out, processVector.indexOf(process), process, comptime);
+                printIOBlocked(out, currentProcessIndex, process, comptime);
                 process.numblocked++;
                 process.ionext = 0;
             } else {
@@ -98,7 +112,7 @@ public class SchedulingAlgorithm {
           printIOBlocked(out, currentProcess, process, comptime);
           process.numblocked++;
           process.ionext = 0;
-          
+
           // scheduling the next process
           previousProcess = currentProcess;
           for (i = size - 1; i >= 0; i--) {
